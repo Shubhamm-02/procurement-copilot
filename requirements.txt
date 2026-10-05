@@ -1,0 +1,11 @@
+# Core app + agent runtime. LLM providers (Groq/Anthropic/OpenAI) are called over
+# their REST APIs with httpx, so no provider SDK is needed — the app installs and
+# runs cleanly from this file alone, with or without API keys.
+fastapi>=0.115,<1
+uvicorn>=0.30,<1
+pydantic>=2.9,<3
+pandas>=2.2,<3
+requests>=2.32,<3
+httpx>=0.27,<1
+python-dotenv>=1.0,<2
+pytest>=8.0

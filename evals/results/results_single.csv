@@ -1,0 +1,7 @@
+case_id,request_id,title,architecture,passed,latency_ms,llm_calls,tool_calls,failures
+PUB-01,REQ-1001,Low-value approved vendor,single,True,16.9,0,7,
+PUB-02,REQ-1002,Existing alternatives + new vendor,single,True,2.7,0,7,
+PUB-03,REQ-1003,Sensitive source-code access,single,True,1.8,0,7,
+PUB-04,REQ-1005,Budget shortfall + new sensitive vendor,single,True,1.8,0,7,
+PUB-05,REQ-1006,Incomplete request + prompt injection,single,True,1.8,0,7,
+PUB-06,REQ-1009,Vendor-risk API unavailable,single,True,2.0,0,7,

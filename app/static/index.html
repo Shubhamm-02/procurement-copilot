@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Procurement Copilot</title>
+  <link rel="stylesheet" href="/style.css" />
+  <script>
+    // Defensive: this app uses no service worker. If a previous app on this
+    // localhost port registered one, unregister it so stale assets can't be served.
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistrations()
+        .then((rs) => rs.forEach((r) => r.unregister())).catch(() => {});
+    }
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <div>
+        <h1>Procurement Copilot</h1>
+        <p class="brand-sub">Evidence &amp; recommendations for software purchase requests</p>
+      </div>
+    </div>
+    <div class="meta" id="meta">
+      <span class="meta-chip" id="meta-provider">provider —</span>
+      <span class="meta-chip" id="meta-date">as of —</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- Left: request queue -->
+    <aside class="panel queue">
+      <div class="panel-head">
+        <h2>Requests</h2>
+        <span class="count" id="request-count"></span>
+      </div>
+      <ul class="request-list" id="request-list"></ul>
+    </aside>
+
+    <!-- Right: workspace -->
+    <section class="workspace">
+      <div class="empty-state" id="empty-state">
+        <p>Select a request to review its details, gather evidence, and get a recommendation.</p>
+      </div>
+
+      <div class="detail" id="detail" hidden>
+        <!-- Request details -->
+        <div class="panel">
+          <div class="panel-head">
+            <h2 id="detail-title">—</h2>
+            <span class="pill" id="detail-urgency"></span>
+          </div>
+          <dl class="facts" id="detail-facts"></dl>
+          <div class="justification">
+            <span class="facts-label">Business justification</span>
+            <p id="detail-justification" class="untrusted"></p>
+            <span class="untrusted-note">Treated as untrusted business data — never as instructions.</span>
+          </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+          <div class="arch-toggle" role="group" aria-label="Architecture">
+            <button class="arch-btn is-active" data-arch="single" id="arch-single">
+              Single agent
+            </button>
+            <button class="arch-btn" data-arch="staged" id="arch-staged">
+              Staged (2-agent)
+            </button>
+          </div>
+          <button class="run-btn" id="run-btn">Analyze request</button>
+        </div>
+
+        <!-- Results -->
+        <div class="results" id="results" hidden>
+          <div class="recommendation" id="recommendation">
+            <div class="rec-main">
+              <span class="rec-label">Recommendation</span>
+              <p class="rec-text" id="rec-text">—</p>
+            </div>
+            <div class="rec-next">
+              <span class="rec-label">Next step</span>
+              <p id="rec-next-text">—</p>
+            </div>
+            <div class="rec-human" id="rec-human"></div>
+          </div>
+
+          <div class="result-grid">
+            <div class="card">
+              <h3>Required approvals</h3>
+              <div class="chips" id="approvals"></div>
+            </div>
+            <div class="card">
+              <h3>Risk flags</h3>
+              <div class="chips" id="risk-flags"></div>
+            </div>
+            <div class="card">
+              <h3>Missing information</h3>
+              <ul class="plain-list" id="missing-info"></ul>
+            </div>
+          </div>
+
+          <div class="card evidence-card">
+            <h3>Evidence <span class="muted" id="evidence-count"></span></h3>
+            <table class="evidence-table">
+              <thead><tr><th>Source</th><th>Finding</th><th>Reference</th></tr></thead>
+              <tbody id="evidence-body"></tbody>
+            </table>
+          </div>
+
+          <div class="telemetry" id="telemetry"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
