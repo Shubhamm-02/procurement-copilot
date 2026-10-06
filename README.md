@@ -168,22 +168,25 @@ Both architectures run the **same** public cases via the starter harness (schema
 minimum-behaviour checks + latency/telemetry). `evals/compare_architectures.py`
 aggregates the results into **[evals/results/comparison.md](evals/results/comparison.md)**.
 
-**Latest committed run (deterministic / no-key mode — fully reproducible):**
+**Latest run with a live LLM (`groq:openai/gpt-oss-120b`):**
 
 | Metric | Single agent (A) | Staged / 2-agent (B) |
 |---|---:|---:|
 | Cases passing minimum checks | **6/6** | **6/6** |
-| Avg LLM calls / case | 0 (→ **1** with a key) | 0 (→ **2** with a key) |
+| Avg latency / case | **~1.2 s** | **~14 s** |
+| Avg LLM calls / case | **1** | **2** |
 | Avg tool calls / case | 7 | 7 |
 | Cases with failures | 0 | 0 |
 
 Both architectures produce **identical decisions** on every case, because the shared
-deterministic engine owns the verdict. With an LLM key enabled, the only metric that
-changes is **LLM calls per case (1 vs 2)** and the latency/cost that follows. Re-run with
-your key to regenerate the numbers:
+deterministic engine owns the verdict. The staged variant makes **2× the LLM calls**;
+under provider rate-limiting that compounds into **~11× the latency** (even with
+retry/backoff) for **zero** correctness gain. In **deterministic / no-key mode** both
+architectures also pass **6/6** at ~2 ms with 0 LLM calls — the app and evaluation are
+fully reproducible with or without a key. Regenerate anytime:
 
 ```bash
-python evals/compare_architectures.py
+python evals/compare_architectures.py      # writes evals/results/comparison.md
 ```
 
 What the evaluation checks (per the brief): correct recommendation/next action, evidence
@@ -270,3 +273,13 @@ docs/
   architecture.md · ARCHITECTURE_DECISION.md
 tests/                                  # 22 tests (policy engine, data, mock API)
 ```
+
+---
+
+## License
+
+Released under the **MIT License** — see [LICENSE](LICENSE).
+
+The datasets, policy, and mock service under `data/` and `mock_api/` are **synthetic
+assessment material** provided in the FDE Assessment 3 starter pack (all companies,
+vendors, people, prices, and risk signals are fictional).

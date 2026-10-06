@@ -4,22 +4,24 @@
 **Ship the single agent (Architecture A).**
 
 ## Evidence
-Same six public cases, run through both architectures (`python evals/compare_architectures.py`).
+Same six public cases, run through both architectures (`python evals/compare_architectures.py`,
+provider `groq:openai/gpt-oss-120b`).
 
 | Metric | Single agent (A) | Staged / 2-agent (B) |
 |---|---:|---:|
 | Cases passing minimum checks | **6/6** | 6/6 |
-| Avg LLM calls / case | **1** (0 in no-key mode) | **2** (0 in no-key mode) |
+| Avg latency / case | **~1.2 s** | **~14 s** |
+| Avg LLM calls / case | **1** | **2** |
 | Avg tool calls / case | 7 | 7 |
-| Avg latency / case | lower | higher (extra LLM round-trip) |
 | Notable policy/grounding failures | none | none |
 
 Both architectures produce **identical** `required_approvals`, `risk_flags`,
 `missing_information`, and `human_review_required` on every case. That is by design:
 those fields come from one deterministic policy engine that both architectures share,
-not from the model. The numbers above are from deterministic (no-key) mode, which is
-fully reproducible; with an LLM key the only metric that moves is **LLM calls per case
-(1 vs 2)** and the latency/cost that follows — correctness does not change.
+not from the model. The staged variant makes **2× the LLM calls**, which under provider
+rate-limiting compounded into **~11× the latency** (even with retry/backoff) — for no
+change in any decision. In deterministic / no-key mode both pass 6/6 at ~2 ms, so the
+result is fully reproducible without a key; adding a key only moves cost, not correctness.
 
 ## Trade-offs
 The staged variant adds a second LLM role (Analyst → Reviewer). In exchange for a

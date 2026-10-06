@@ -16,10 +16,33 @@ from __future__ import annotations
 
 import json
 import re
+import time
 
 import httpx
 
 from src import config
+
+# Retry transient rate-limit / server errors with short backoff. Makes the
+# product robust to provider throttling (and lets the staged variant — which
+# makes 2x the calls — complete reliably during evaluation).
+_RETRY_STATUS = {429, 500, 502, 503, 529}
+_MAX_ATTEMPTS = 3
+
+
+def _post_with_retry(url: str, headers: dict, payload: dict) -> httpx.Response:
+    last_exc: Exception | None = None
+    for attempt in range(_MAX_ATTEMPTS):
+        resp = httpx.post(url, headers=headers, json=payload, timeout=config.LLM_TIMEOUT_SECONDS)
+        if resp.status_code in _RETRY_STATUS and attempt < _MAX_ATTEMPTS - 1:
+            backoff = float(resp.headers.get("retry-after", "") or (1.5 * (attempt + 1)))
+            time.sleep(min(backoff, 8.0))
+            continue
+        resp.raise_for_status()
+        return resp
+    if last_exc:
+        raise last_exc
+    resp.raise_for_status()
+    return resp
 
 
 class LLMUnavailable(RuntimeError):
@@ -82,12 +105,11 @@ def _openai_compatible(provider: str, key: str, model: str,
         "max_tokens": max_tokens,
         "response_format": {"type": "json_object"},
     }
-    resp = httpx.post(
+    resp = _post_with_retry(
         f"{base}/chat/completions",
-        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-        json=payload, timeout=config.LLM_TIMEOUT_SECONDS,
+        {"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+        payload,
     )
-    resp.raise_for_status()
     return resp.json()["choices"][0]["message"]["content"]
 
 
@@ -99,16 +121,15 @@ def _anthropic(key: str, model: str, system: str, user: str, max_tokens: int) ->
         "system": system,
         "messages": [{"role": "user", "content": user}],
     }
-    resp = httpx.post(
+    resp = _post_with_retry(
         "https://api.anthropic.com/v1/messages",
-        headers={
+        {
             "x-api-key": key,
             "anthropic-version": "2023-06-01",
             "Content-Type": "application/json",
         },
-        json=payload, timeout=config.LLM_TIMEOUT_SECONDS,
+        payload,
     )
-    resp.raise_for_status()
     parts = resp.json().get("content", [])
     return "".join(p.get("text", "") for p in parts if p.get("type") == "text")
 
