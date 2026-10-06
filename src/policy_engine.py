@@ -152,13 +152,20 @@ def evaluate(request: dict, evidence: dict) -> EngineResult:
             f"({vendor_risk.get('error')}). Favorable status was NOT assumed."
         )
 
-    # Policy §5: registry and external service disagree -> surface conflict.
-    if api_available and registry.get("found") and api_state != reg_state:
-        if {"current"} & {api_state, reg_state} and {"expired", "not_completed"} & {api_state, reg_state}:
+    # Policy §5: internal registry and external service disagree -> surface conflict.
+    # Compare the registry's *stated* status against the service's current-ness, so a
+    # stale registry still showing "Approved" while the service says expired/not_completed
+    # is flagged instead of silently resolved.
+    if api_available and registry.get("found"):
+        reg_label = (registry.get("security_status") or "").strip().lower()
+        registry_says_ok = reg_label == "approved"
+        service_says_ok = (api_state == "current")
+        if registry_says_ok != service_says_ok:
             r.risk_flags.append("conflicting_vendor_evidence")
             r.rationale["conflict"] = (
-                f"Internal registry ({reg_state}) and vendor-risk service ({api_state}) "
-                f"disagree on '{vendor}' security status — routed to Security/manual review."
+                f"Internal registry security status '{registry.get('security_status')}' "
+                f"disagrees with the vendor-risk service ({api_state}) for '{vendor}' — "
+                f"routed to Security/manual review rather than trusting one source."
             )
 
     assessment_ok = (api_state == "current") if api_available else False

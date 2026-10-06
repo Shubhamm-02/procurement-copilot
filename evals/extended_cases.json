@@ -1,0 +1,61 @@
+[
+  {
+    "case_id": "EXT-01",
+    "request_id": "REQ-1004",
+    "title": "AI tool requesting customer PII",
+    "what_it_tests": "An approved AI vendor does NOT auto-authorize a sensitive data class; Security + Privacy required",
+    "expectations": {
+      "required_approvals_any_groups": [["department head"], ["security"], ["privacy"]],
+      "risk_flags_any_groups": [
+        ["security_review_required", "security"],
+        ["privacy_review_required", "privacy"]
+      ],
+      "max_missing_information": 0,
+      "min_evidence_items": 4,
+      "human_review_required": true
+    }
+  },
+  {
+    "case_id": "EXT-02",
+    "request_id": "REQ-1007",
+    "title": "Conflicting + expired vendor info, production access",
+    "what_it_tests": "Registry vs service disagreement + expired assessment + production integration",
+    "expectations": {
+      "required_approvals_any_groups": [["department head"], ["finance"], ["security"]],
+      "risk_flags_any_groups": [
+        ["security_review_required", "security"],
+        ["vendor_review_expired", "expired"],
+        ["conflicting_vendor_evidence", "conflict"]
+      ],
+      "min_evidence_items": 4,
+      "human_review_required": true
+    }
+  },
+  {
+    "case_id": "EXT-03",
+    "request_id": "REQ-1008",
+    "title": "Mid-tier clean request with existing-tool overlap",
+    "what_it_tests": "Overlap surfaced; no false security/budget flags; correct approval tier",
+    "expectations": {
+      "required_approvals_any_groups": [["department head"], ["procurement"]],
+      "risk_flags_any_groups": [["existing_tool_overlap", "overlap"]],
+      "risk_flags_must_not_contain": ["security_review_required", "budget_insufficient", "vendor_risk_unavailable"],
+      "max_missing_information": 0,
+      "min_evidence_items": 3,
+      "human_review_required": true
+    }
+  },
+  {
+    "case_id": "EXT-04",
+    "request_id": "REQ-1010",
+    "title": "Low-value professional services",
+    "what_it_tests": "Manager-only approval; no heavy reviews; overlap surfaced, not blocking",
+    "expectations": {
+      "required_approvals_any_groups": [["manager"]],
+      "risk_flags_must_not_contain": ["budget_insufficient", "security_review_required", "vendor_risk_unavailable"],
+      "max_missing_information": 0,
+      "min_evidence_items": 2,
+      "human_review_required": true
+    }
+  }
+]

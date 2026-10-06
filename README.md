@@ -189,6 +189,17 @@ fully reproducible with or without a key. Regenerate anytime:
 python evals/compare_architectures.py      # writes evals/results/comparison.md
 ```
 
+**Extended coverage.** Beyond the 6 public cases, `evals/extended_cases.json` adds 4 cases
+that exercise edge conditions the public set doesn't — an approved AI vendor requesting
+**customer PII** (REQ-1004), **conflicting + expired** vendor evidence with production
+access (REQ-1007), a clean mid-tier request with overlap (REQ-1008), and a low-value
+professional-services request (REQ-1010). All pass on both architectures:
+
+```bash
+python evals/run_public_evals.py --cases extended_cases.json --architecture single   # 4/4
+python evals/run_public_evals.py --cases extended_cases.json --architecture staged   # 4/4
+```
+
 What the evaluation checks (per the brief): correct recommendation/next action, evidence
 grounded in tool results, deterministic policy followed, correct escalation/human review,
 and latency + LLM/tool-call counts.
@@ -238,8 +249,8 @@ All data is synthetic (from the starter pack), in `data/`:
 
 ## Known limitations
 
-- Evaluated on the 6 public cases; hidden cases use the same interfaces with different
-  values (no answers are hardcoded by request ID).
+- Evaluated on the 6 public cases plus 4 extended cases; hidden cases use the same
+  interfaces with different values (no answers are hardcoded by request ID).
 - No authentication / persistence / audit log yet — appropriate for an MVP, required before production.
 - The injection scanner is heuristic; it should be hardened against obfuscated payloads.
 - Geography/data-residency logic is coarse (region-out flag only).

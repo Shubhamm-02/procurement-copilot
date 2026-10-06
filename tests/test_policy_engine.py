@@ -91,6 +91,21 @@ def test_expired_assessment_triggers_security_and_expired_flag():
     assert "vendor_review_expired" in r.risk_flags
 
 
+def test_registry_vs_service_conflict_flagged():
+    # Registry still says 'Approved' while the external service says 'expired' -> conflict.
+    ev = make_evidence(
+        vendor_registry={"found": True, "vendor_name": "Acme", "procurement_status": "Approved",
+                         "security_status": "Approved", "security_review_date": "2026-06-20",
+                         "legal_terms_status": "Approved", "is_new_vendor": False, "notes": ""},
+        vendor_risk={"available": True, "status_code": 200, "data": {
+            "risk_level": "medium", "security_review_status": "expired",
+            "last_review_date": "2025-07-01", "processes_personal_data": False,
+            "stores_data_outside_region": False}})
+    r = policy_engine.evaluate(make_request(), ev)
+    assert "conflicting_vendor_evidence" in r.risk_flags
+    assert "security_review_required" in r.risk_flags
+
+
 # ---- Policy §6: privacy ----------------------------------------------------
 def test_customer_pii_triggers_privacy_and_security():
     r = policy_engine.evaluate(make_request(data_access_level="customer_pii"), make_evidence())
