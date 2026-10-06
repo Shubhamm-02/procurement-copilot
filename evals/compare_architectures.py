@@ -34,6 +34,7 @@ from src import llm  # noqa: E402
 from src.contracts import ProcurementDecision  # noqa: E402
 from src.solution import handle_request  # noqa: E402
 from evals.run_public_evals import evaluate  # noqa: E402
+from evals._service import ensure_vendor_risk_api  # noqa: E402
 
 ARCHS = ["single", "staged"]
 CASES = json.loads((ROOT / "evals" / "public_cases.json").read_text(encoding="utf-8"))
@@ -93,14 +94,16 @@ def main() -> None:
     print(f"\nArchitecture comparison on {len(CASES)} public cases | LLM: {provider}\n")
 
     results, aggs = {}, {}
-    for arch in ARCHS:
-        rows = run_arch(arch)
-        results[arch] = rows
-        aggs[arch] = aggregate(rows)
-        write_csv(rows, OUT_DIR / f"results_{arch}.csv")
-        a = aggs[arch]
-        print(f"  {arch:7s}: {a['passed']}/{a['cases']} passed | "
-              f"avg {a['avg_latency_ms']} ms | {a['avg_llm_calls']} LLM | {a['avg_tool_calls']} tools")
+    # Auto-start the Vendor Risk API if needed, so the comparison is self-contained.
+    with ensure_vendor_risk_api():
+        for arch in ARCHS:
+            rows = run_arch(arch)
+            results[arch] = rows
+            aggs[arch] = aggregate(rows)
+            write_csv(rows, OUT_DIR / f"results_{arch}.csv")
+            a = aggs[arch]
+            print(f"  {arch:7s}: {a['passed']}/{a['cases']} passed | "
+                  f"avg {a['avg_latency_ms']} ms | {a['avg_llm_calls']} LLM | {a['avg_tool_calls']} tools")
 
     _write_comparison_md(provider, aggs, results)
     print(f"\nWrote {OUT_DIR.relative_to(ROOT)}/comparison.md and per-architecture CSVs.")

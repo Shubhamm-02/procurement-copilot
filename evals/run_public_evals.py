@@ -13,6 +13,7 @@ if str(ROOT) not in sys.path:
 
 from src.contracts import ProcurementDecision
 from src.solution import handle_request
+from evals._service import ensure_vendor_risk_api
 
 
 def norm(value: object) -> str:
@@ -62,54 +63,65 @@ def evaluate(decision: ProcurementDecision, expectations: dict) -> list[str]:
     return failures
 
 
+def _run_case(case: dict, architecture: str) -> dict | None:
+    """Run one case; return a result row, or None to signal STOP (not implemented)."""
+    start = time.perf_counter()
+    try:
+        raw = handle_request(case['request_id'], architecture=architecture)
+        decision = raw if isinstance(raw, ProcurementDecision) else ProcurementDecision.model_validate(raw)
+        latency_ms = (time.perf_counter() - start) * 1000
+        failures = evaluate(decision, case['expectations'])
+        tel = decision.telemetry
+        print(f"{'PASS' if not failures else 'FAIL'}  {case['case_id']}  {case['title']}  ({latency_ms:.0f} ms)")
+        for f in failures:
+            print(f"      - {f}")
+        return {
+            'case_id': case['case_id'], 'request_id': case['request_id'], 'architecture': architecture,
+            'passed_minimum_checks': not failures, 'latency_ms': round(latency_ms, 1),
+            'llm_calls': tel.llm_calls if tel else '', 'tool_calls': tel.tool_calls if tel else '',
+            'failures': ' | '.join(failures),
+        }
+    except NotImplementedError as exc:
+        print(f"STOP  {exc}")
+        return None
+    except Exception as exc:  # noqa: BLE001
+        latency_ms = (time.perf_counter() - start) * 1000
+        print(f"ERROR {case['case_id']}  {type(exc).__name__}: {exc}")
+        return {
+            'case_id': case['case_id'], 'request_id': case['request_id'], 'architecture': architecture,
+            'passed_minimum_checks': False, 'latency_ms': round(latency_ms, 1),
+            'llm_calls': '', 'tool_calls': '', 'failures': f"ERROR: {type(exc).__name__}: {exc}",
+        }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument('--architecture', choices=['single','staged'], default='single')
+    parser.add_argument('--architecture', choices=['single', 'staged'], default='single')
     parser.add_argument('--cases', default='public_cases.json',
                         help='cases file under evals/ (e.g. extended_cases.json)')
     args = parser.parse_args()
 
-    cases = json.loads((ROOT/'evals'/args.cases).read_text(encoding='utf-8'))
+    cases = json.loads((ROOT / 'evals' / args.cases).read_text(encoding='utf-8'))
     rows = []
     print(f"\nEvaluation [{args.cases}] - architecture={args.architecture}\n")
 
-    for case in cases:
-        start = time.perf_counter()
-        try:
-            raw = handle_request(case['request_id'], architecture=args.architecture)
-            decision = raw if isinstance(raw, ProcurementDecision) else ProcurementDecision.model_validate(raw)
-            latency_ms = (time.perf_counter() - start) * 1000
-            failures = evaluate(decision, case['expectations'])
-            passed = not failures
-            tel = decision.telemetry
-            print(f"{'PASS' if passed else 'FAIL'}  {case['case_id']}  {case['title']}  ({latency_ms:.0f} ms)")
-            for f in failures:
-                print(f"      - {f}")
-            rows.append({
-                'case_id':case['case_id'], 'request_id':case['request_id'], 'architecture':args.architecture,
-                'passed_minimum_checks':passed, 'latency_ms':round(latency_ms,1),
-                'llm_calls': tel.llm_calls if tel else '', 'tool_calls': tel.tool_calls if tel else '',
-                'failures':' | '.join(failures)
-            })
-        except NotImplementedError as exc:
-            print(f"STOP  {exc}")
-            return
-        except Exception as exc:
-            latency_ms = (time.perf_counter() - start) * 1000
-            print(f"ERROR {case['case_id']}  {type(exc).__name__}: {exc}")
-            rows.append({
-                'case_id':case['case_id'], 'request_id':case['request_id'], 'architecture':args.architecture,
-                'passed_minimum_checks':False, 'latency_ms':round(latency_ms,1),
-                'llm_calls':'', 'tool_calls':'', 'failures':f"ERROR: {type(exc).__name__}: {exc}"
-            })
+    # Auto-start the Vendor Risk API if it isn't already running, so the eval is
+    # self-contained and reproducible without a separate terminal.
+    with ensure_vendor_risk_api():
+        for case in cases:
+            row = _run_case(case, args.architecture)
+            if row is None:
+                return
+            rows.append(row)
 
     if rows:
         stem = Path(args.cases).stem
         suffix = '' if stem == 'public_cases' else f"{stem}_"
-        out = ROOT/'evals'/f"results_{suffix}{args.architecture}.csv"
+        out = ROOT / 'evals' / f"results_{suffix}{args.architecture}.csv"
         with out.open('w', newline='', encoding='utf-8') as f:
             writer = csv.DictWriter(f, fieldnames=rows[0].keys())
-            writer.writeheader(); writer.writerows(rows)
+            writer.writeheader()
+            writer.writerows(rows)
         passed = sum(1 for r in rows if r['passed_minimum_checks'])
         print(f"\nMinimum checks passed: {passed}/{len(rows)}")
         print(f"Results written to: {out.relative_to(ROOT)}")

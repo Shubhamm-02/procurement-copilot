@@ -60,10 +60,12 @@ recommendation. Provider priority is **Groq → Anthropic (Claude) → OpenAI**.
 
 ```bash
 # run the evaluations (same cases, both architectures)
+# These are self-contained: they auto-start the vendor-risk API on :8001 if it
+# isn't already running, so you don't need `run_local.py` in another terminal.
 python evals/run_public_evals.py --architecture single
 python evals/run_public_evals.py --architecture staged
 python evals/compare_architectures.py     # writes evals/results/comparison.md
-python -m pytest -q                        # 22 unit tests (engine + data + mock API)
+python -m pytest -q                        # 23 unit tests (engine + data + mock API)
 ```
 
 ---
@@ -282,7 +284,7 @@ evals/
   compare_architectures.py · results/   # comparison.md + per-arch CSVs
 docs/
   architecture.md · ARCHITECTURE_DECISION.md
-tests/                                  # 22 tests (policy engine, data, mock API)
+tests/                                  # 23 tests (policy engine, data, mock API)
 ```
 
 ---
