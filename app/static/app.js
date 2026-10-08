@@ -10,6 +10,10 @@ const DANGER_FLAGS = new Set([
 const fmtUsd = (v) =>
   v == null ? "—" : "$" + Number(v).toLocaleString("en-US", { maximumFractionDigits: 0 });
 const tit=(s)=> (s||"").replace(/_/g," ").replace(/\b\w/g, c=>c.toUpperCase());
+// Escape untrusted text before it goes into innerHTML (evidence findings include
+// LLM-generated text; business data is never trusted as markup).
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g,
+  (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 async function getJSON(url, opts) {
   const res = await fetch(url, opts);
@@ -46,11 +50,11 @@ function renderList() {
     li.dataset.id = r.request_id;
     li.innerHTML = `
       <div class="ri-top">
-        <span class="ri-product">${r.product_name ?? "—"}</span>
+        <span class="ri-product">${esc(r.product_name ?? "—")}</span>
         <span class="ri-cost">${fmtUsd(r.annual_cost_usd)}</span>
       </div>
-      <div class="ri-sub">${r.vendor_name ?? "—"} · ${r.department ?? "—"}</div>
-      <div class="ri-sub"><span class="ri-id">${r.request_id}</span> · ${r.requester ?? "—"}</div>`;
+      <div class="ri-sub">${esc(r.vendor_name ?? "—")} · ${esc(r.department ?? "—")}</div>
+      <div class="ri-sub"><span class="ri-id">${esc(r.request_id)}</span> · ${esc(r.requester ?? "—")}</div>`;
     li.addEventListener("click", () => selectRequest(r.request_id));
     ul.appendChild(li);
   }
@@ -79,7 +83,7 @@ async function selectRequest(id) {
     ["Integrations", (d.requested_integrations || []).join(", ") || "none"],
   ];
   document.getElementById("detail-facts").innerHTML = facts
-    .map(([k, v]) => `<div class="fact"><dt>${k}</dt><dd>${v ?? "—"}</dd></div>`).join("");
+    .map(([k, v]) => `<div class="fact"><dt>${esc(k)}</dt><dd>${esc(v ?? "—")}</dd></div>`).join("");
   document.getElementById("detail-justification").textContent = d.business_justification || "—";
 }
 
@@ -123,7 +127,7 @@ function renderResults(dec) {
   // Approvals
   const ap = document.getElementById("approvals");
   ap.innerHTML = dec.required_approvals.length
-    ? dec.required_approvals.map((a) => `<span class="chip approval">${a}</span>`).join("")
+    ? dec.required_approvals.map((a) => `<span class="chip approval">${esc(a)}</span>`).join("")
     : `<span class="chip-empty">None required</span>`;
 
   // Risk flags
@@ -131,30 +135,30 @@ function renderResults(dec) {
   rf.innerHTML = dec.risk_flags.length
     ? dec.risk_flags.map((f) => {
         const cls = DANGER_FLAGS.has(f) ? "risk-danger" : "risk-warn";
-        return `<span class="chip ${cls}">${tit(f)}</span>`;
+        return `<span class="chip ${cls}">${esc(tit(f))}</span>`;
       }).join("")
     : `<span class="chip-empty">No flags</span>`;
 
   // Missing info
   const mi = document.getElementById("missing-info");
   mi.innerHTML = dec.missing_information.length
-    ? dec.missing_information.map((m) => `<li>${m}</li>`).join("")
+    ? dec.missing_information.map((m) => `<li>${esc(m)}</li>`).join("")
     : `<li class="chip-empty">Nothing missing</li>`;
 
-  // Evidence
+  // Evidence (findings may include LLM-generated text -> escape before render)
   document.getElementById("evidence-count").textContent = `(${dec.evidence.length})`;
   document.getElementById("evidence-body").innerHTML = dec.evidence
-    .map((e) => `<tr><td class="src">${e.source}</td><td>${e.finding}</td>
-                 <td class="ref">${e.reference ?? ""}</td></tr>`).join("");
+    .map((e) => `<tr><td class="src">${esc(e.source)}</td><td>${esc(e.finding)}</td>
+                 <td class="ref">${esc(e.reference ?? "")}</td></tr>`).join("");
 
   // Telemetry
   const t = dec.telemetry || {};
   document.getElementById("telemetry").innerHTML = `
-    <span>Architecture <b>${dec.architecture}</b></span>
-    <span>Latency <b>${dec.latency_ms} ms</b></span>
-    <span>LLM calls <b>${t.llm_calls ?? 0}</b></span>
-    <span>Tool calls <b>${t.tool_calls ?? 0}</b></span>
-    <span>Tools: <b>${(t.tool_names || []).join(", ") || "—"}</b></span>`;
+    <span>Architecture <b>${esc(dec.architecture)}</b></span>
+    <span>Latency <b>${esc(dec.latency_ms)} ms</b></span>
+    <span>LLM calls <b>${esc(t.llm_calls ?? 0)}</b></span>
+    <span>Tool calls <b>${esc(t.tool_calls ?? 0)}</b></span>
+    <span>Tools: <b>${esc((t.tool_names || []).join(", ")) || "—"}</b></span>`;
 
   results.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
